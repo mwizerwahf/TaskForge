@@ -43,12 +43,6 @@ python app.py
 
 ### Initial Setup
 
-On first run, the system creates a default admin account:
-
-- **Email**: `admin@taskforge.local`
-- **Password**: `changeme`
-
-**⚠️ IMPORTANT**: Change the default password immediately after first login.
 
 ### Configuration
 

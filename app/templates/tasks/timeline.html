@@ -1,0 +1,174 @@
+{% extends 'base.html' %} {% block title %}Timeline — TaskForge{% endblock %} {%
+block page_title %}<span>Task</span> Forge Timeline{% endblock %} {% block
+content %}
+<div class="forge-card">
+  <div class="forge-card-header">
+    <span class="forge-card-title"
+      ><i class="bi bi-bar-chart-steps" style="color: var(--forge-accent)"></i>
+      Project Timeline</span
+    >
+    <div style="display: flex; gap: 8px; align-items: center">
+      <button
+        class="btn-forge-outline"
+        onclick="shiftDays(-14)"
+        style="padding: 5px 10px"
+      >
+        <i class="bi bi-chevron-left"></i>
+      </button>
+      <span
+        id="range-label"
+        style="
+          font-family: var(--font-mono);
+          font-size: 11px;
+          color: var(--forge-muted);
+        "
+      ></span>
+      <button
+        class="btn-forge-outline"
+        onclick="shiftDays(14)"
+        style="padding: 5px 10px"
+      >
+        <i class="bi bi-chevron-right"></i>
+      </button>
+    </div>
+  </div>
+  <div class="forge-card-body">
+    <div class="timeline-wrap" id="timeline-wrap">
+      <div class="no-tasks" id="no-tasks-msg" style="display: none">
+        <i
+          class="bi bi-bar-chart-steps"
+          style="
+            font-size: 48px;
+            display: block;
+            margin-bottom: 16px;
+            opacity: 0.2;
+          "
+        ></i
+        >No tasks with date ranges
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  const PRIORITY_COLORS = {
+    low: "#00d17a",
+    medium: "#ffd700",
+    high: "#ff6b35",
+    critical: "#ff3b5c",
+  };
+  const STATUS_COLORS = {
+    not_started: "#6b6b80",
+    in_progress: "#4f8ef7",
+    blocked: "#ff3b5c",
+    completed: "#00d17a",
+  };
+  let viewStart = null;
+  const NUM_DAYS = 30;
+  const COL_WIDTH = 28;
+
+  function shiftDays(n) {
+    viewStart = new Date(viewStart.getTime() + n * 86400000);
+    renderTimeline(window._tlTasks);
+  }
+
+  async function loadTimeline() {
+    const r = await fetch("/api/timeline/tasks");
+    window._tlTasks = await r.json();
+    if (!viewStart) {
+      const today = new Date();
+      viewStart = new Date(today.getTime() - 7 * 86400000);
+      viewStart.setHours(0, 0, 0, 0);
+    }
+    renderTimeline(window._tlTasks);
+  }
+
+  function renderTimeline(tasks) {
+    const wrap = document.getElementById("timeline-wrap");
+    const noMsg = document.getElementById("no-tasks-msg");
+    if (!tasks.length) {
+      noMsg.style.display = "block";
+      wrap.innerHTML = "";
+      wrap.appendChild(noMsg);
+      return;
+    }
+    noMsg.style.display = "none";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const totalW = NUM_DAYS * COL_WIDTH;
+    const endDate = new Date(viewStart.getTime() + NUM_DAYS * 86400000);
+
+    // Header
+    let daysHtml = "";
+    let gridLines = "";
+    for (let i = 0; i < NUM_DAYS; i++) {
+      const d = new Date(viewStart.getTime() + i * 86400000);
+      const isToday = d.getTime() === today.getTime();
+      daysHtml += `<div class="day-header" style="width:${COL_WIDTH}px;${isToday ? "color:var(--forge-accent);font-weight:700" : ""}">
+      ${d.getDate()}<br><span style="opacity:0.6">${["S", "M", "T", "W", "T", "F", "S"][d.getDay()]}</span>
+    </div>`;
+      gridLines += `<div class="grid-line" style="left:${i * COL_WIDTH}px"></div>`;
+    }
+
+    // Today line
+    const todayOffset = Math.round((today - viewStart) / 86400000);
+    let todayLine = "";
+    if (todayOffset >= 0 && todayOffset < NUM_DAYS) {
+      todayLine = `<div class="timeline-today-line" style="left:${todayOffset * COL_WIDTH}px"><span class="today-label">TODAY</span></div>`;
+    }
+
+    // Update range label
+    document.getElementById("range-label").textContent =
+      `${viewStart.toLocaleDateString("en", { month: "short", day: "numeric" })} — ${endDate.toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" })}`;
+
+    // Task rows
+    let rowsHtml = tasks
+      .map((task) => {
+        const s = new Date(task.start_date);
+        s.setHours(0, 0, 0, 0);
+        const e = new Date(task.due_date);
+        e.setHours(0, 0, 0, 0);
+        const startOff = Math.max(0, Math.round((s - viewStart) / 86400000));
+        const endOff = Math.min(
+          NUM_DAYS,
+          Math.round((e - viewStart) / 86400000) + 1,
+        );
+        const barLeft = startOff * COL_WIDTH;
+        const barWidth = Math.max(4, (endOff - startOff) * COL_WIDTH - 2);
+        const color = STATUS_COLORS[task.status] || "#6b6b80";
+        const visible = endOff > 0 && startOff < NUM_DAYS;
+        const barHtml = visible
+          ? `<div class="timeline-bar" style="left:${barLeft}px;width:${barWidth}px;background:${color}" title="${task.title}" onclick="window.location='/tasks/${task.id}'">
+      ${barWidth > 40 ? `<span style="padding:0 6px;white-space:nowrap;overflow:hidden">${task.title}</span>` : ""}
+    </div>`
+          : "";
+        return `<div class="timeline-row">
+      <div class="task-label">
+        <div class="task-label-inner" title="${task.title}">
+          <div class="task-label-name">${task.title}</div>
+          <div class="task-label-meta">${task.assignee_name}</div>
+        </div>
+      </div>
+      <div class="timeline-track" style="width:${totalW}px;position:relative">
+        ${gridLines}${todayLine}${barHtml}
+      </div>
+    </div>`;
+      })
+      .join("");
+
+    wrap.innerHTML = `
+  <div style="display:flex;margin-bottom:4px">
+    <div style="width:220px;flex-shrink:0"></div>
+    <div style="flex:1;min-width:${totalW}px">
+      <div style="display:flex">${daysHtml}</div>
+    </div>
+  </div>
+  <div style="height:2px;background:var(--forge-border);margin-bottom:12px;margin-left:220px"></div>
+  ${rowsHtml || '<div class="no-tasks">No tasks with date ranges visible</div>'}`;
+  }
+
+  loadTimeline();
+  socket.on("task_updated", loadTimeline);
+  socket.on("task_created", loadTimeline);
+</script>
+{% endblock %}

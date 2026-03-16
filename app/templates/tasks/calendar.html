@@ -1,0 +1,94 @@
+{% extends 'base.html' %} {% block title %}Calendar — TaskForge{% endblock %} {%
+block page_title %}<span>Task</span>Forge Calendar{% endblock %} {% block
+extra_css %}
+<link
+  href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.css"
+  rel="stylesheet"
+/>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.js"></script>
+{% endblock %} {% block content%}
+<div class="cal-wrap">
+  <div id="calendar"></div>
+</div>
+
+<div id="event-popup" class="event-popup" style="display: none">
+  <div
+    style="font-weight: 800; font-size: 14px; margin-bottom: 8px"
+    id="ep-title"
+  ></div>
+  <div
+    style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px"
+    id="ep-badges"
+  ></div>
+  <div
+    style="font-size: 12px; color: var(--forge-muted); margin-bottom: 10px"
+    id="ep-assignee"
+  ></div>
+  <a
+    id="ep-link"
+    href="#"
+    class="btn-forge"
+    style="font-size: 12px; padding: 6px 14px"
+    ><i class="bi bi-arrow-right-circle"></i> Open Task</a
+  >
+  <button
+    onclick="document.getElementById('event-popup').style.display = 'none'"
+    style="
+      background: transparent;
+      border: none;
+      color: var(--forge-muted);
+      float: right;
+      cursor: pointer;
+      font-size: 16px;
+    "
+  >
+    ×
+  </button>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const calEl = document.getElementById("calendar");
+    const calendar = new FullCalendar.Calendar(calEl, {
+      initialView: "dayGridMonth",
+      headerToolbar: {
+        left: "prev,next today",
+        center: "title",
+        right: "dayGridMonth,timeGridWeek,listWeek",
+      },
+      height: "auto",
+      events: "/api/calendar/tasks",
+      eventClick: (info) => {
+        const popup = document.getElementById("event-popup");
+        const ep = info.event.extendedProps;
+        document.getElementById("ep-title").textContent = info.event.title;
+        document.getElementById("ep-badges").innerHTML = `
+        <span class="status-badge status-${ep.status}">${ep.status.replace("_", " ")}</span>
+        <span class="status-badge priority-${ep.priority}">${ep.priority}</span>`;
+        document.getElementById("ep-assignee").innerHTML =
+          `<i class="bi bi-person me-1"></i>${ep.assignee}`;
+        document.getElementById("ep-link").href = `/tasks/${info.event.id}`;
+        const rect = info.el.getBoundingClientRect();
+        popup.style.display = "block";
+        popup.style.top = `${Math.min(rect.bottom + 8, window.innerHeight - 200)}px`;
+        popup.style.left = `${Math.min(rect.left, window.innerWidth - 260)}px`;
+      },
+      datesSet: () => {
+        document.getElementById("event-popup").style.display = "none";
+      },
+    });
+    calendar.render();
+
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".event-popup") && !e.target.closest(".fc-event")) {
+        document.getElementById("event-popup").style.display = "none";
+      }
+    });
+
+    // Real-time calendar refresh
+    socket.on("task_created", () => calendar.refetchEvents());
+    socket.on("task_updated", () => calendar.refetchEvents());
+    socket.on("task_status_changed", () => calendar.refetchEvents());
+  });
+</script>
+{% endblock %}

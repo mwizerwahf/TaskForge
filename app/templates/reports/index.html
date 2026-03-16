@@ -1,0 +1,116 @@
+{% extends 'base.html' %} {% block title %}Reports — TaskForge{% endblock %} {%
+block page_title %}<span>Task</span>Forge Reports{% endblock %} {% block
+extra_css %} {% endblock %} {% block content %}
+<div class="mb-4">
+  <h2 style="font-size: 20px; font-weight: 800; margin: 0">Export Reports</h2>
+  <p style="color: var(--forge-muted); font-size: 13px; margin-top: 4px">
+    Generate PDF reports for task activity and developer performance.
+  </p>
+</div>
+
+<div class="report-cards">
+  <div class="report-card">
+    <i class="bi bi-file-earmark-person-fill report-icon"></i>
+    <div class="report-title">My Daily Report</div>
+    <div class="report-desc">
+      Export a PDF of all your tasks and activity for a given date.
+    </div>
+    <div style="margin-bottom: 16px">
+      <label class="fl">Report Date</label>
+      <input type="date" id="my-date" class="fi" value="{{ today }}" />
+    </div>
+    <a
+      id="my-report-btn"
+      href="#"
+      onclick="exportMyReport(event)"
+      class="btn-fx"
+      style="width: 100%; justify-content: center"
+    >
+      <i class="bi bi-download"></i> Download PDF
+    </a>
+  </div>
+
+  {% if current_user.is_manager %}
+  <div class="report-card">
+    <i
+      class="bi bi-file-earmark-bar-graph-fill report-icon"
+      style="color: var(--forge-blue)"
+    ></i>
+    <div class="report-title">Developer Report</div>
+    <div class="report-desc">Export a daily report for any team member.</div>
+    <div style="margin-bottom: 12px">
+      <label class="fl">Developer</label>
+      <select id="dev-select" class="forge-input form-select mb-2">
+        {% for u in users %}
+        <option value="{{ u.id }}">{{ u.name }} ({{ u.role }})</option>
+        {% endfor %}
+      </select>
+      <label class="fl">Date</label>
+      <input type="date" id="dev-date" class="fi" value="{{ today }}" />
+    </div>
+    <a
+      href="#"
+      onclick="exportDevReport(event)"
+      class="btn-fx"
+      style="
+        width: 100%;
+        justify-content: center;
+        background: var(--forge-blue);
+      "
+    >
+      <i class="bi bi-download"></i> Download PDF
+    </a>
+  </div>
+  {% endif %}
+
+  <div class="report-card">
+    <i
+      class="bi bi-file-earmark-zip-fill report-icon"
+      style="color: var(--forge-green)"
+    ></i>
+    <div class="report-title">Full Team Report</div>
+    <div class="report-desc">
+      Export today's complete team activity and task summary.
+    </div>
+    <div style="margin-bottom: 16px">
+      <label class="fl">Report Date</label>
+      <input type="date" id="team-date" class="fi" value="{{ today }}" />
+    </div>
+    {% if current_user.is_manager %}
+    <a
+      href="#"
+      onclick="exportTeamReport(event)"
+      class="btn-fx"
+      style="
+        width: 100%;
+        justify-content: center;
+        background: var(--forge-green);
+      "
+    >
+      <i class="bi bi-download"></i> Download PDF
+    </a>
+    {% else %}
+    <button
+      class="btn-fx"
+      style="
+        width: 100%;
+        justify-content: center;
+        background: var(--forge-border);
+        cursor: not-allowed;
+      "
+      disabled
+    >
+      <i class="bi bi-lock"></i> Managers Only
+    </button>
+    {% endif %}
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  document.getElementById('my-date').value = new Date().toISOString().split('T')[0];
+  {% if current_user.is_manager %}
+  document.getElementById('dev-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('team-date').value = new Date().toISOString().split('T')[0];
+  {% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,327 @@
+{% extends 'base.html' %} {% block title %}Tasks — TaskForge{% endblock %} {%
+block page_title %}<span>Task</span>Forge Tasks{% endblock %} {% block extra_css
+%} {% endblock %} {% block content %}
+<!-- Filters -->
+<div class="filter-bar">
+  <div class="filter-group">
+    <label class="fl">Search</label>
+    <input
+      type="text"
+      id="f-search"
+      class="forge-input search-input"
+      placeholder="Search tasks..."
+    />
+  </div>
+  <div class="filter-group">
+    <label class="fl">Status</label>
+    <select id="f-status" class="forge-input form-select">
+      <option value="">All Status</option>
+      <option value="not_started">Not Started</option>
+      <option value="in_progress">In Progress</option>
+      <option value="blocked">Blocked</option>
+      <option value="completed">Completed</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="fl">Priority</label>
+    <select id="f-priority" class="forge-input form-select">
+      <option value="">All Priority</option>
+      <option value="low">Low</option>
+      <option value="medium">Medium</option>
+      <option value="high">High</option>
+      <option value="critical">Critical</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="fl">Assignee</label>
+    <select id="f-assignee" class="forge-input form-select">
+      <option value="">All Assignees</option>
+      {% for u in users %}
+      <option value="{{ u.id }}">{{ u.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="fl">Due From</label>
+    <input type="date" id="f-start" class="fi" />
+  </div>
+  <div class="filter-group">
+    <label class="fl">Due To</label>
+    <input type="date" id="f-end" class="fi" />
+  </div>
+  <div
+    class="filter-group"
+    style="
+      flex-direction: row;
+      align-items: center;
+      gap: 6px;
+      padding-top: 18px;
+    "
+  >
+    <input
+      type="checkbox"
+      id="f-overdue"
+      style="accent-color: var(--forge-red)"
+    />
+    <label
+      for="f-overdue"
+      style="font-size: 13px; cursor: pointer; color: var(--forge-red)"
+      >Overdue only</label
+    >
+  </div>
+  <div class="filter-group" style="padding-top: 18px">
+    <button class="btn-fo" onclick="clearFilters()">
+      <i class="bi bi-x-circle"></i> Clear
+    </button>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="fc">
+  <div class="fc-hd">
+    <span class="fc-title"
+      ><i class="bi bi-table" style="color: var(--forge-accent)"></i> All
+      Tasks</span
+    >
+    <span id="tasks-count">Loading...</span>
+  </div>
+  <div style="overflow-x: auto">
+    <table class="ft" id="tasks-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Title</th>
+          <th>Assignee</th>
+          <th>Status</th>
+          <th>Priority</th>
+          <th>Due Date</th>
+          <th>Tags</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tasks-tbody">
+        <tr class="loading-row">
+          <td colspan="8">
+            <i class="bi bi-hourglass-split me-2"></i>Loading tasks...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Edit Task Modal -->
+<div class="modal fade forge-modal" id="editTaskModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-pencil me-2" style="color: var(--forge-accent)"></i
+          >Edit Task
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <div class="modal-body p-4">
+        <input type="hidden" id="et-id" />
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="fl">Title *</label>
+            <input type="text" id="et-title" class="fi" />
+          </div>
+          <div class="col-12">
+            <label class="fl">Description</label>
+            <textarea id="et-desc" class="fi" rows="3"></textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="fl">Status</label>
+            <select id="et-status" class="forge-input form-select">
+              <option value="not_started">Not Started</option>
+              <option value="in_progress">In Progress</option>
+              <option value="blocked">Blocked</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="fl">Priority</label>
+            <select id="et-priority" class="forge-input form-select">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="fl">Assignee</label>
+            <select id="et-assignee" class="forge-input form-select">
+              <option value="">Unassigned</option>
+              {% for u in users %}
+              <option value="{{ u.id }}">{{ u.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="fl">Tags</label>
+            <input type="text" id="et-tags" class="fi" />
+          </div>
+          <div class="col-md-6">
+            <label class="fl">Start Date</label>
+            <input type="date" id="et-start" class="fi" />
+          </div>
+          <div class="col-md-6">
+            <label class="fl">Due Date</label>
+            <input type="date" id="et-due" class="fi" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-fo" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-fx" onclick="submitEditTask()">
+          <i class="bi bi-check-lg"></i> Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  let editModal;
+  let debounceTimer;
+  const CURRENT_USER = {
+    id: {{ current_user.id }},
+    role: '{{ current_user.role }}'
+  };
+
+  function getFilters() {
+    const p = new URLSearchParams();
+    const s = document.getElementById('f-search').value.trim();
+    const st = document.getElementById('f-status').value;
+    const pr = document.getElementById('f-priority').value;
+    const as = document.getElementById('f-assignee').value;
+    const sd = document.getElementById('f-start').value;
+    const ed = document.getElementById('f-end').value;
+    const ov = document.getElementById('f-overdue').checked;
+    if (s) p.set('search', s);
+    if (st) p.set('status', st);
+    if (pr) p.set('priority', pr);
+    if (as) p.set('assignee', as);
+    if (sd) p.set('start_range', sd);
+    if (ed) p.set('end_range', ed);
+    if (ov) p.set('overdue', '1');
+    return p;
+  }
+
+  function priorityDot(p) {
+    const c = {low:'var(--forge-green)',medium:'var(--forge-accent2)',high:'var(--forge-accent)',critical:'var(--forge-red)'};
+    return `<span class="sb p-${p}">${p.toUpperCase()}</span>`;
+  }
+
+  function statusBadge(s) {
+    const l = {not_started:'Not Started',in_progress:'In Progress',blocked:'Blocked',completed:'Completed'};
+    return `<span class="sb s-${s}">${l[s]||s}</span>`;
+  }
+
+  function canEditTask(task) {
+    if (['admin', 'manager'].includes(CURRENT_USER.role)) return true;
+    return task.creator_id === CURRENT_USER.id;
+  }
+
+  async function loadTasks() {
+    const params = getFilters();
+    const r = await fetch('/api/tasks?' + params.toString());
+    const tasks = await r.json();
+    const tbody = document.getElementById('tasks-tbody');
+    document.getElementById('tasks-count').textContent = `${tasks.length} task${tasks.length!==1?'s':''}`;
+    if (!tasks.length) {
+      tbody.innerHTML = '<tr class="loading-row"><td colspan="8"><i class="bi bi-inbox me-2"></i>No tasks found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = tasks.map(t => {
+      const overdue = t.is_overdue ? 'overdue-row' : '';
+      const due = t.due_date ? `<span style="${t.is_overdue?'color:var(--forge-red)':''}">${t.due_date}${t.is_overdue?' <i class="bi bi-exclamation-triangle-fill"></i>':''}</span>` : '—';
+      const tags = t.tags.length ? t.tags.map(tg=>`<span class="tag-chip">${tg}</span>`).join(' ') : '';
+      const canEdit = canEditTask(t);
+      const editBtn = canEdit ? `<button class="action-btn" onclick='openEdit(${JSON.stringify(t)})' title="Edit"><i class="bi bi-pencil"></i></button>` : '';
+      const delBtn = ['admin', 'manager'].includes(CURRENT_USER.role) ? `<button class="action-btn danger" onclick="deleteTask(${t.id},'${t.title.replace("'","\\\'")}')" title="Delete"><i class="bi bi-trash"></i></button>` : '';
+      return `<tr class="${overdue}">
+        <td><span style="font-family:var(--mono);color:var(--forge-muted);font-size:11px">#${t.id}</span></td>
+        <td><a href="/tasks/${t.id}" class="task-title-link">${t.title}</a></td>
+        <td><span style="font-size:13px">${t.assignee_name}</span></td>
+        <td>${statusBadge(t.status)}</td>
+        <td>${priorityDot(t.priority)}</td>
+        <td style="font-family:var(--mono);font-size:12px">${due}</td>
+        <td>${tags}</td>
+        <td><div class="task-actions">
+          <a href="/tasks/${t.id}" class="action-btn" title="View"><i class="bi bi-eye"></i></a>
+          ${editBtn}
+          ${delBtn}
+        </div></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function clearFilters() {
+    ['f-search','f-status','f-priority','f-assignee','f-start','f-end'].forEach(id => {
+      const el = document.getElementById(id);
+      el.value = '';
+    });
+    document.getElementById('f-overdue').checked = false;
+    loadTasks();
+  }
+
+  ['f-status','f-priority','f-assignee','f-start','f-end','f-overdue'].forEach(id => {
+    document.getElementById(id).addEventListener('change', loadTasks);
+  });
+  document.getElementById('f-search').addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(loadTasks, 350);
+  });
+
+  function openEdit(task) {
+    if (!editModal) editModal = new bootstrap.Modal(document.getElementById('editTaskModal'));
+    document.getElementById('et-id').value = task.id;
+    document.getElementById('et-title').value = task.title;
+    document.getElementById('et-desc').value = task.description;
+    document.getElementById('et-status').value = task.status;
+    document.getElementById('et-priority').value = task.priority;
+    document.getElementById('et-assignee').value = task.assignee_id || '';
+    document.getElementById('et-tags').value = task.tags.join(', ');
+    document.getElementById('et-start').value = task.start_date || '';
+    document.getElementById('et-due').value = task.due_date || '';
+    editModal.show();
+  }
+
+  async function submitEditTask() {
+    const id = document.getElementById('et-id').value;
+    const body = {
+      title: document.getElementById('et-title').value,
+      description: document.getElementById('et-desc').value,
+      status: document.getElementById('et-status').value,
+      priority: document.getElementById('et-priority').value,
+      assignee_id: document.getElementById('et-assignee').value || null,
+      tags: document.getElementById('et-tags').value,
+      start_date: document.getElementById('et-start').value,
+      due_date: document.getElementById('et-due').value
+    };
+    const r = await fetch(`/api/tasks/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    if (r.ok) { editModal.hide(); loadTasks(); showToast('Task updated!', 'green', 'bi-check-circle'); }
+    else { const e = await r.json(); alert(e.error || 'Failed'); }
+  }
+
+  async function deleteTask(id, title) {
+    if (!confirm(`Delete task "${title}"?`)) return;
+    const r = await fetch(`/api/tasks/${id}`, {method:'DELETE'});
+    if (r.ok) { loadTasks(); showToast('Task deleted', 'red', 'bi-trash'); }
+  }
+
+  window.onTaskCreated = () => loadTasks();
+  window.onTaskStatusChanged = () => loadTasks();
+  socket.on('task_updated', () => loadTasks());
+  socket.on('task_deleted', () => loadTasks());
+
+  loadTasks();
+</script>
+{% endblock %}

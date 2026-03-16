@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TaskForge — Sign In</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+      rel="stylesheet"
+    />
+    <link
+      href="{{ url_for('static', filename='css/style.css') }}"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0a0a0f;
+        --surf: #111118;
+        --surf2: #1a1a24;
+        --border: #2a2a38;
+        --accent: #ff6b35;
+        --gold: #ffd700;
+        --text: #e8e8f0;
+        --muted: #6b6b80;
+        --ff: "Syne", sans-serif;
+        --mono: "Space Mono", monospace;
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: var(--ff);
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 107, 53, 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 107, 53, 0.04) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
+      }
+      body::after {
+        content: "";
+        position: fixed;
+        top: -200px;
+        right: -200px;
+        width: 600px;
+        height: 600px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(255, 107, 53, 0.06),
+          transparent 70%
+        );
+        pointer-events: none;
+      }
+      .wrap {
+        display: flex;
+        width: 100%;
+        max-width: 960px;
+        margin: 24px;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 32px 80px rgba(0, 0, 0, 0.5);
+        min-height: 540px;
+      }
+      .left {
+        flex: 1;
+        background: var(--surf);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 60px;
+        position: relative;
+        overflow: hidden;
+      }
+      .left::before {
+        content: "";
+        position: absolute;
+        bottom: -100px;
+        right: -100px;
+        width: 320px;
+        height: 320px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(255, 107, 53, 0.12),
+          transparent 70%
+        );
+        pointer-events: none;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 48px;
+      }
+      .hex {
+        width: 44px;
+        height: 44px;
+        background: var(--accent);
+        clip-path: polygon(
+          50% 0%,
+          100% 25%,
+          100% 75%,
+          50% 100%,
+          0% 75%,
+          0% 25%
+        );
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 800;
+        color: #fff;
+      }
+      .brand-name {
+        font-size: 26px;
+        font-weight: 800;
+      }
+      .brand-name span {
+        color: var(--accent);
+      }
+      .tagline {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+      }
+      .headline {
+        font-size: 38px;
+        font-weight: 800;
+        line-height: 1.1;
+        margin-bottom: 20px;
+      }
+      .headline em {
+        color: var(--accent);
+        font-style: normal;
+      }
+      .desc {
+        font-size: 14px;
+        color: var(--muted);
+        line-height: 1.75;
+        max-width: 340px;
+      }
+      .pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 30px;
+      }
+      .pill {
+        background: rgba(255, 107, 53, 0.1);
+        border: 1px solid rgba(255, 107, 53, 0.2);
+        color: var(--accent);
+        font-family: var(--mono);
+        font-size: 10px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        letter-spacing: 1px;
+      }
+      .right {
+        width: 400px;
+        background: #0d0d15;
+        border-left: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 56px 48px;
+      }
+      .form-title {
+        font-size: 22px;
+        font-weight: 800;
+        margin-bottom: 6px;
+      }
+      .form-sub {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 34px;
+        font-family: var(--mono);
+      }
+      .fg {
+        margin-bottom: 20px;
+      }
+      .fl {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 2px;
+        color: var(--muted);
+        text-transform: uppercase;
+        display: block;
+        margin-bottom: 8px;
+      }
+      .fi {
+        width: 100%;
+        background: var(--surf);
+        border: 1.5px solid var(--border);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 12px 16px;
+        font-family: var(--ff);
+        font-size: 14px;
+        transition: border-color 0.2s;
+      }
+      .fi:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+      .fi::placeholder {
+        color: var(--muted);
+      }
+      .rem-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 26px;
+      }
+      .rem-row input {
+        accent-color: var(--accent);
+        width: 15px;
+        height: 15px;
+      }
+      .rem-row label {
+        font-size: 13px;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      .login-btn {
+        width: 100%;
+        background: var(--accent);
+        border: none;
+        color: #fff;
+        font-family: var(--ff);
+        font-weight: 800;
+        font-size: 15px;
+        padding: 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+        letter-spacing: 0.3px;
+      }
+      .login-btn:hover {
+        background: #ff8555;
+        transform: translateY(-1px);
+        box-shadow: 0 8px 24px rgba(255, 107, 53, 0.3);
+      }
+      .demo {
+        margin-top: 26px;
+        background: var(--surf);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px;
+      }
+      .demo-hd {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--muted);
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+      }
+      .cred {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 5px 4px;
+        border-bottom: 1px solid rgba(42, 42, 56, 0.5);
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background 0.15s;
+      }
+      .cred:last-child {
+        border-bottom: none;
+      }
+      .cred:hover {
+        background: rgba(255, 107, 53, 0.06);
+      }
+      .cred-role {
+        color: var(--accent);
+        font-family: var(--mono);
+        font-size: 10px;
+        min-width: 70px;
+      }
+      .cred-info {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .err {
+        background: rgba(255, 59, 92, 0.1);
+        border: 1px solid rgba(255, 59, 92, 0.3);
+        color: #ff7b92;
+        border-radius: 8px;
+        padding: 10px 13px;
+        font-size: 13px;
+        margin-bottom: 18px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      @media (max-width: 740px) {
+        .left {
+          display: none;
+        }
+        .right {
+          width: 100%;
+          padding: 40px 28px;
+        }
+        .wrap {
+          border-radius: 0;
+          margin: 0;
+          min-height: 100vh;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="left">
+        <div class="brand">
+          <div class="hex">TF</div>
+          <span class="brand-name">Task<span>Forge</span></span>
+        </div>
+        <div class="tagline">Developer Task Platform</div>
+        <h1 class="headline">Build, track,<br /><em>ship faster.</em></h1>
+        <p class="desc">
+          TaskForge gives engineering teams real-time visibility into every task
+          — with drag-and-drop Kanban, live WebSocket updates, and smart PDF
+          reporting.
+        </p>
+        <div class="pills">
+          <span class="pill">KANBAN BOARD</span>
+          <span class="pill">REAL-TIME SYNC</span>
+          <span class="pill">PDF REPORTS</span>
+          <span class="pill">ROLE-BASED ACCESS</span>
+          <span class="pill">ACTIVITY LOGS</span>
+          <span class="pill">TIMELINE VIEW</span>
+        </div>
+      </div>
+      <div class="right">
+        <div class="form-title">Welcome back</div>
+        <div class="form-sub">// sign in to your workspace</div>
+        {% with messages = get_flashed_messages(with_categories=true) %} {% if
+        messages %}{% for cat,msg in messages %}
+        <div class="err"><i class="bi bi-exclamation-circle"></i>{{ msg }}</div>
+        {% endfor %}{% endif %} {% endwith %}
+        <form method="POST" action="/login">
+          <div class="fg">
+            <label class="fl">Email Address</label>
+            <input
+              type="email"
+              name="email"
+              class="fi"
+              placeholder="you@company.dev"
+              required
+              autocomplete="email"
+            />
+          </div>
+          <div class="fg">
+            <label class="fl">Password</label>
+            <input
+              type="password"
+              name="password"
+              class="fi"
+              placeholder="••••••••"
+              required
+              autocomplete="current-password"
+            />
+          </div>
+          <div class="rem-row">
+            <input type="checkbox" name="remember" id="rem" />
+            <label for="rem">Keep me signed in</label>
+          </div>
+          <button type="submit" class="login-btn">Sign In →</button>
+        </form>
+        </div>
+      </div>
+    </div>
+    <script>
+      function fill(e, p) {
+        document.querySelector("input[name=email]").value = e;
+        document.querySelector("input[name=password]").value = p;
+      }
+    </script>
+  </body>
+</html>

@@ -1,116 +1,350 @@
-{% extends 'base.html' %} {% block title %}Reports — TaskForge{% endblock %} {%
-block page_title %}<span>Task</span>Forge Reports{% endblock %} {% block
-extra_css %} {% endblock %} {% block content %}
-<div class="mb-4">
-  <h2 style="font-size: 20px; font-weight: 800; margin: 0">Export Reports</h2>
-  <p style="color: var(--forge-muted); font-size: 13px; margin-top: 4px">
-    Generate PDF reports for task activity and developer performance.
-  </p>
+{% extends 'base.html' %}
+{% block title %}Reports — TaskForge{% endblock %}
+{% block page_title %}<span>Daily</span> Reports{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Page intro ── */
+.rp-intro { margin-bottom: 32px; }
+.rp-intro h2 { font-size: 22px; font-weight: 800; margin: 0 0 4px; }
+.rp-intro p  { font-size: 13px; color: var(--muted); margin: 0; }
+
+/* ── Report cards grid ── */
+.rp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+/* ── Individual report card ── */
+.rp-card {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color .2s, transform .2s;
+  position: relative;
+}
+.rp-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+
+/* Top coloured accent bar */
+.rp-card-bar {
+  height: 3px;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.rp-card.blue  .rp-card-bar { background: var(--blue); }
+.rp-card.green .rp-card-bar { background: var(--green); }
+
+.rp-card-body { padding: 24px 24px 20px; flex: 1; display: flex; flex-direction: column; }
+
+/* Icon + title row */
+.rp-card-head {
+  display: flex; align-items: flex-start; gap: 14px; margin-bottom: 14px;
+}
+.rp-card-icon {
+  width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; background: rgba(255,107,53,.12); color: var(--accent);
+}
+.rp-card.blue  .rp-card-icon { background: rgba(79,142,247,.12);  color: var(--blue);  }
+.rp-card.green .rp-card-icon { background: rgba(0,209,122,.12);   color: var(--green); }
+.rp-card-icon-label h3 { font-size: 15px; font-weight: 800; margin: 0 0 3px; }
+.rp-card-icon-label p  { font-size: 12px; color: var(--muted); margin: 0; line-height: 1.5; }
+
+/* Form fields inside card */
+.rp-fields { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; flex: 1; }
+.rp-field  { display: flex; flex-direction: column; gap: 5px; }
+
+/* Download button */
+.rp-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px 20px; border-radius: 9px; border: none;
+  font-family: var(--ff); font-size: 13px; font-weight: 700;
+  cursor: pointer; text-decoration: none; transition: all .2s;
+  width: 100%;
+}
+.rp-btn.orange { background: var(--accent); color: #fff; }
+.rp-btn.orange:hover { background: #ff8555; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,107,53,.3); }
+.rp-btn.blue   { background: var(--blue);   color: #fff; }
+.rp-btn.blue:hover   { background: #6fa8ff; transform: translateY(-1px); }
+.rp-btn.green  { background: var(--green);  color: #0a0a0f; }
+.rp-btn.green:hover  { background: #33ffaa; transform: translateY(-1px); }
+.rp-btn.locked { background: var(--surf2); color: var(--muted); border: 1px solid var(--border); cursor: not-allowed; }
+.rp-btn.locked:hover { transform: none; box-shadow: none; }
+
+/* ── Preview area ── */
+.rp-preview-wrap {
+  margin-top: 32px;
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.rp-preview-hd {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.rp-preview-title {
+  font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; gap: 8px;
+}
+.rp-preview-body { padding: 0; }
+.rp-preview-body iframe {
+  width: 100%; height: 680px; border: none; display: block;
+  background: #fff;
+}
+.rp-preview-empty {
+  padding: 60px 24px;
+  text-align: center; color: var(--muted); font-size: 13px;
+}
+.rp-preview-empty i { font-size: 48px; display: block; margin-bottom: 12px; opacity: .25; }
+
+/* ── Legend strip ── */
+.legend-strip {
+  display: flex; gap: 20px; flex-wrap: wrap;
+  margin-bottom: 24px; padding: 12px 16px;
+  background: var(--surf); border: 1px solid var(--border);
+  border-radius: 10px; align-items: center;
+}
+.legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+.legend-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+@media (max-width: 700px) {
+  .rp-grid { grid-template-columns: 1fr; }
+  .rp-preview-body iframe { height: 500px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rp-intro">
+  <h2>Export Reports</h2>
+  <p>Generate professional PDF summaries of daily task activity and team progress.</p>
 </div>
 
-<div class="report-cards">
-  <div class="report-card">
-    <i class="bi bi-file-earmark-person-fill report-icon"></i>
-    <div class="report-title">My Daily Report</div>
-    <div class="report-desc">
-      Export a PDF of all your tasks and activity for a given date.
+<!-- Legend -->
+<div class="legend-strip">
+  <span style="font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-right:4px">Status</span>
+  <div class="legend-item"><div class="legend-dot" style="background:#6B7280"></div>Not Started</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#2563EB"></div>In Progress</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#DC2626"></div>Blocked</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#059669"></div>Completed</div>
+  <div style="width:1px;height:18px;background:var(--border);margin:0 4px"></div>
+  <span style="font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-right:4px">Priority</span>
+  <div class="legend-item"><div class="legend-dot" style="background:#059669"></div>Low</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#D97706"></div>Medium</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#EA580C"></div>High</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#DC2626"></div>Critical</div>
+</div>
+
+<!-- Report cards -->
+<div class="rp-grid">
+
+  <!-- My Daily Report -->
+  <div class="rp-card">
+    <div class="rp-card-bar"></div>
+    <div class="rp-card-body">
+      <div class="rp-card-head">
+        <div class="rp-card-icon"><i class="bi bi-person-lines-fill"></i></div>
+        <div class="rp-card-icon-label">
+          <h3>My Daily Report</h3>
+          <p>Your tasks and activity for a selected date — tasks assigned to you only.</p>
+        </div>
+      </div>
+      <div class="rp-fields">
+        <div class="rp-field">
+          <label class="fl">Report Date</label>
+          <input type="date" id="my-date" class="fi" value="{{ today }}">
+        </div>
+      </div>
+      <button class="rp-btn orange" onclick="preview('my')">
+        <i class="bi bi-eye"></i> Preview Report
+      </button>
     </div>
-    <div style="margin-bottom: 16px">
-      <label class="fl">Report Date</label>
-      <input type="date" id="my-date" class="fi" value="{{ today }}" />
-    </div>
-    <a
-      id="my-report-btn"
-      href="#"
-      onclick="exportMyReport(event)"
-      class="btn-fx"
-      style="width: 100%; justify-content: center"
-    >
-      <i class="bi bi-download"></i> Download PDF
-    </a>
   </div>
 
   {% if current_user.is_manager %}
-  <div class="report-card">
-    <i
-      class="bi bi-file-earmark-bar-graph-fill report-icon"
-      style="color: var(--forge-blue)"
-    ></i>
-    <div class="report-title">Developer Report</div>
-    <div class="report-desc">Export a daily report for any team member.</div>
-    <div style="margin-bottom: 12px">
-      <label class="fl">Developer</label>
-      <select id="dev-select" class="forge-input form-select mb-2">
-        {% for u in users %}
-        <option value="{{ u.id }}">{{ u.name }} ({{ u.role }})</option>
-        {% endfor %}
-      </select>
-      <label class="fl">Date</label>
-      <input type="date" id="dev-date" class="fi" value="{{ today }}" />
-    </div>
-    <a
-      href="#"
-      onclick="exportDevReport(event)"
-      class="btn-fx"
-      style="
-        width: 100%;
-        justify-content: center;
-        background: var(--forge-blue);
-      "
-    >
-      <i class="bi bi-download"></i> Download PDF
-    </a>
-  </div>
-  {% endif %}
 
-  <div class="report-card">
-    <i
-      class="bi bi-file-earmark-zip-fill report-icon"
-      style="color: var(--forge-green)"
-    ></i>
-    <div class="report-title">Full Team Report</div>
-    <div class="report-desc">
-      Export today's complete team activity and task summary.
+  <!-- Developer Report -->
+  <div class="rp-card blue">
+    <div class="rp-card-bar"></div>
+    <div class="rp-card-body">
+      <div class="rp-card-head">
+        <div class="rp-card-icon"><i class="bi bi-person-badge-fill"></i></div>
+        <div class="rp-card-icon-label">
+          <h3>Developer Report</h3>
+          <p>Daily activity for any individual team member — all their assigned tasks.</p>
+        </div>
+      </div>
+      <div class="rp-fields">
+        <div class="rp-field">
+          <label class="fl">Developer</label>
+          <select id="dev-uid" class="fi form-select">
+            {% for u in users %}
+            <option value="{{ u.id }}">{{ u.name }} &nbsp;·&nbsp; {{ u.role }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="rp-field">
+          <label class="fl">Report Date</label>
+          <input type="date" id="dev-date" class="fi" value="{{ today }}">
+        </div>
+      </div>
+      <button class="rp-btn blue" onclick="preview('dev')">
+        <i class="bi bi-eye"></i> Preview Report
+      </button>
     </div>
-    <div style="margin-bottom: 16px">
-      <label class="fl">Report Date</label>
-      <input type="date" id="team-date" class="fi" value="{{ today }}" />
+  </div>
+
+  <!-- Full Team Report -->
+  <div class="rp-card green">
+    <div class="rp-card-bar"></div>
+    <div class="rp-card-body">
+      <div class="rp-card-head">
+        <div class="rp-card-icon"><i class="bi bi-people-fill"></i></div>
+        <div class="rp-card-icon-label">
+          <h3>Full Team Report</h3>
+          <p>All active tasks across the entire team for a given date.</p>
+        </div>
+      </div>
+      <div class="rp-fields">
+        <div class="rp-field">
+          <label class="fl">Report Date</label>
+          <input type="date" id="team-date" class="fi" value="{{ today }}">
+        </div>
+      </div>
+      <button class="rp-btn green" onclick="preview('team')">
+        <i class="bi bi-eye"></i> Preview Report
+      </button>
     </div>
-    {% if current_user.is_manager %}
-    <a
-      href="#"
-      onclick="exportTeamReport(event)"
-      class="btn-fx"
-      style="
-        width: 100%;
-        justify-content: center;
-        background: var(--forge-green);
-      "
-    >
-      <i class="bi bi-download"></i> Download PDF
-    </a>
-    {% else %}
-    <button
-      class="btn-fx"
-      style="
-        width: 100%;
-        justify-content: center;
-        background: var(--forge-border);
-        cursor: not-allowed;
-      "
-      disabled
-    >
-      <i class="bi bi-lock"></i> Managers Only
-    </button>
-    {% endif %}
+  </div>
+
+  {% else %}
+
+  <!-- Locked cards for non-managers -->
+  <div class="rp-card blue" style="opacity:.5">
+    <div class="rp-card-bar"></div>
+    <div class="rp-card-body">
+      <div class="rp-card-head">
+        <div class="rp-card-icon"><i class="bi bi-person-badge-fill"></i></div>
+        <div class="rp-card-icon-label">
+          <h3>Developer Report</h3>
+          <p>Available to Managers and Admins only.</p>
+        </div>
+      </div>
+      <div style="flex:1"></div>
+      <button class="rp-btn locked"><i class="bi bi-lock"></i> Manager Access Only</button>
+    </div>
+  </div>
+
+  <div class="rp-card green" style="opacity:.5">
+    <div class="rp-card-bar"></div>
+    <div class="rp-card-body">
+      <div class="rp-card-head">
+        <div class="rp-card-icon"><i class="bi bi-people-fill"></i></div>
+        <div class="rp-card-icon-label">
+          <h3>Full Team Report</h3>
+          <p>Available to Managers and Admins only.</p>
+        </div>
+      </div>
+      <div style="flex:1"></div>
+      <button class="rp-btn locked"><i class="bi bi-lock"></i> Manager Access Only</button>
+    </div>
+  </div>
+
+  {% endif %}
+</div>
+
+<!-- PDF Preview pane -->
+<div class="rp-preview-wrap" id="preview-wrap">
+  <div class="rp-preview-hd">
+    <span class="rp-preview-title">
+      <i class="bi bi-file-earmark-pdf-fill" style="color:var(--accent)"></i>
+      Report Preview
+    </span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="preview-label" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span>
+      <button id="dl-btn" class="btn-fx" style="display:none;font-size:12px;padding:6px 14px" onclick="downloadReport()">
+        <i class="bi bi-download"></i> Download PDF
+      </button>
+    </div>
+  </div>
+  <div class="rp-preview-body">
+    <div class="rp-preview-empty" id="preview-empty">
+      <i class="bi bi-file-earmark-pdf"></i>
+      Select a report type above and click <strong>Preview Report</strong>
+    </div>
+    <iframe id="preview-frame" style="display:none"></iframe>
   </div>
 </div>
-{% endblock %} {% block extra_js %}
+{% endblock %}
+
+{% block extra_js %}
 <script>
-  document.getElementById('my-date').value = new Date().toISOString().split('T')[0];
-  {% if current_user.is_manager %}
-  document.getElementById('dev-date').value = new Date().toISOString().split('T')[0];
-  document.getElementById('team-date').value = new Date().toISOString().split('T')[0];
-  {% endif %}
+let currentUrl = null;
+
+function buildUrl(type) {
+  if (type === 'my') {
+    const d = document.getElementById('my-date').value;
+    return `/reports/daily-pdf?date=${d}`;
+  }
+  if (type === 'dev') {
+    const d = document.getElementById('dev-date').value;
+    const u = document.getElementById('dev-uid').value;
+    return `/reports/daily-pdf?date=${d}&user_id=${u}`;
+  }
+  if (type === 'team') {
+    const d = document.getElementById('team-date').value;
+    return `/reports/daily-pdf?date=${d}`;
+  }
+}
+
+function labelFor(type) {
+  if (type === 'my')   return 'My Daily Report';
+  if (type === 'dev') {
+    const sel = document.getElementById('dev-uid');
+    return sel ? sel.options[sel.selectedIndex].text.split('·')[0].trim() : 'Developer Report';
+  }
+  if (type === 'team') return 'Full Team Report';
+}
+
+function preview(type) {
+  const url = buildUrl(type);
+  currentUrl = url;
+  const frame = document.getElementById('preview-frame');
+  const empty = document.getElementById('preview-empty');
+  const dlBtn = document.getElementById('dl-btn');
+  const lbl   = document.getElementById('preview-label');
+
+  frame.style.display = 'none';
+  empty.innerHTML = `<i class="bi bi-hourglass-split" style="font-size:36px;display:block;margin-bottom:12px;opacity:.3;animation:spin 1.2s linear infinite"></i>Generating PDF…`;
+  empty.style.display = 'block';
+  dlBtn.style.display = 'none';
+  lbl.textContent = '';
+
+  frame.onload = () => {
+    empty.style.display = 'none';
+    frame.style.display = 'block';
+    dlBtn.style.display = 'inline-flex';
+    lbl.textContent = labelFor(type);
+    showToast('Report ready', 'green', 'bi-check-circle');
+  };
+  frame.onerror = () => {
+    empty.innerHTML = `<i class="bi bi-exclamation-circle" style="font-size:36px;color:var(--red);display:block;margin-bottom:12px"></i>Failed to generate report`;
+  };
+  frame.src = url;
+  document.getElementById('preview-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function downloadReport() {
+  if (currentUrl) window.open(currentUrl, '_blank');
+}
 </script>
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
 {% endblock %}

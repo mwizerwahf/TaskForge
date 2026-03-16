@@ -37,6 +37,15 @@ def create_app():
     app.register_blueprint(reports_bp)
     app.register_blueprint(users_bp)
 
+    # Health check endpoint
+    @app.route('/health')
+    def health_check():
+        try:
+            db.session.execute('SELECT 1')
+            return {'status': 'healthy', 'database': 'connected'}, 200
+        except Exception as e:
+            return {'status': 'unhealthy', 'database': 'disconnected', 'error': str(e)}, 503
+
     with app.app_context():
         db.create_all()
         _seed_data()

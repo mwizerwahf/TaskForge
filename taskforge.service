@@ -1,0 +1,31 @@
+[Unit]
+Description=TaskForge Application
+After=network.target postgresql.service
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/taskforge
+Environment="PATH=/var/www/taskforge/venv/bin"
+EnvironmentFile=/var/www/taskforge/.env
+ExecStart=/var/www/taskforge/venv/bin/gunicorn \
+    --worker-class eventlet \
+    -w 1 \
+    --bind 127.0.0.1:8000 \
+    --timeout 120 \
+    --access-logfile /var/log/taskforge/access.log \
+    --error-logfile /var/log/taskforge/error.log \
+    --log-level info \
+    app:app
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

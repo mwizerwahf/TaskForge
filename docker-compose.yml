@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: taskforge_db
+    environment:
+      POSTGRES_DB: taskforge_db
+      POSTGRES_USER: taskforge_user
+      POSTGRES_PASSWORD: taskforge_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskforge_user -d taskforge_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: taskforge_app
+    environment:
+      FLASK_ENV: production
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-this}
+      DATABASE_URL: postgresql://taskforge_user:taskforge_pass@db:5432/taskforge_db
+      UPLOAD_FOLDER: /app/app/uploads
+    volumes:
+      - ./app/uploads:/app/app/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

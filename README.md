@@ -43,7 +43,6 @@ python app.py
 
 ### Initial Setup
 
-
 ### Configuration
 
 Edit `config.py` to customize:
@@ -69,12 +68,12 @@ export DATABASE_URL=postgresql://user:pass@host:5432/dbname
 
 Four-tier role-based permission system:
 
-| Role      | Permissions |
-|-----------|-------------|
-| **Admin** | Full system access, user management, all task operations |
-| **Manager** | Create/edit/delete all tasks, view all reports, assign tasks |
+| Role          | Permissions                                                         |
+| ------------- | ------------------------------------------------------------------- |
+| **Admin**     | Full system access, user management, all task operations            |
+| **Manager**   | Create/edit/delete all tasks, view all reports, assign tasks        |
 | **Developer** | Create/edit own tasks, update assigned tasks, comment, upload files |
-| **Viewer** | Read-only access to tasks and reports |
+| **Viewer**    | Read-only access to tasks and reports                               |
 
 ### Task Management
 
@@ -415,6 +414,7 @@ pytest --cov=app tests/
 ## Support
 
 For issues and questions:
+
 - GitHub Issues: [repository-url]/issues
 - Documentation: [docs-url]
 - Email: support@taskforge.local

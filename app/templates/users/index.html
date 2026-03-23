@@ -1,0 +1,401 @@
+{% extends 'base.html' %}
+{% block title %}Users — TaskForge{% endblock %}
+{% block page_title %}<span>User</span> Management{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h2 style="font-size: 20px; font-weight: 800; margin: 0">Team Members</h2>
+    <div style="font-family: var(--font-mono); font-size: 11px; color: var(--forge-muted);">
+      {{ users|length }} user{{ 's' if users|length != 1 }}
+    </div>
+  </div>
+  <button class="btn-fx" onclick="openCreateUser()">
+    <i class="bi bi-person-plus-fill"></i> Add User
+  </button>
+</div>
+
+<div class="fc">
+  <div style="overflow-x: auto">
+    <table class="ft">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Email</th>
+          <th>Roles</th>
+          <th>Managed Roles</th>
+          <th>Tasks Assigned</th>
+          <th>Member Since</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>
+            <div style="display: flex; align-items: center; gap: 10px">
+              <div class="user-row-avatar">{{ u.name[0].upper() }}</div>
+              <div>
+                <div style="font-weight: 700; font-size: 14px">{{ u.name }}</div>
+                <div style="font-family: var(--font-mono); font-size: 10px; color: var(--forge-muted);">#{{ u.id }}</div>
+              </div>
+            </div>
+          </td>
+          <td style="font-family: var(--font-mono); font-size: 12px">{{ u.email }}</td>
+          <td>
+            <div style="display:flex;gap:4px;flex-wrap:wrap">
+              {% for r in u.get_roles() %}
+              <span class="role-badge role-{{ r }}">{{ r }}</span>
+              {% endfor %}
+            </div>
+          </td>
+          <td>
+            {% if u.get_managed_roles() %}
+            <div style="display:flex;gap:4px;flex-wrap:wrap">
+              {% for mr in u.get_managed_roles() %}
+              <span class="role-badge role-{{ mr }}" style="opacity:0.6;font-size:10px">{{ mr }}</span>
+              {% endfor %}
+            </div>
+            {% else %}
+            <span style="color:var(--muted);font-size:11px">—</span>
+            {% endif %}
+          </td>
+          <td><span style="font-family: var(--font-mono)">{{ u.assigned_tasks.count() }}</span></td>
+          <td style="font-family: var(--font-mono); font-size: 12px; color: var(--forge-muted);">
+            {{ u.created_at.strftime('%Y-%m-%d') }}
+          </td>
+          <td>
+            <div style="display: flex; gap: 6px">
+              <button class="action-btn" onclick='openEditUser({{ u.to_dict()|tojson }})' title="Edit">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button class="action-btn" onclick='openChangePassword({{ u.id }},{{ u.name|tojson }})' title="Change Password">
+                <i class="bi bi-key"></i>
+              </button>
+              {% if u.id != current_user.id %}
+              <button class="action-btn danger" onclick='deleteUser({{ u.id }},{{ u.name|tojson }})' title="Delete">
+                <i class="bi bi-trash"></i>
+              </button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Create user modal -->
+<div class="modal fade forge-modal" id="createUserModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-person-plus me-2" style="color: var(--forge-accent)"></i>Add Team Member
+        </h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form id="createUserForm" onsubmit="event.preventDefault(); submitCreateUser();">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="fl">Full Name</label>
+            <input type="text" id="cu-name" class="fi" placeholder="Jane Smith" />
+          </div>
+          <div class="col-md-6">
+            <label class="fl">Email</label>
+            <input type="email" id="cu-email" class="fi" placeholder="jane@company.com" />
+          </div>
+          <div class="col-12">
+            <label class="fl">Password</label>
+            <input type="password" id="cu-pass" class="fi" placeholder="Minimum 6 characters" />
+          </div>
+          <div class="col-12">
+            <label class="fl">Roles (select multiple)</label>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:8px">
+              {% for role in all_roles %}
+              <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surf);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
+                <input type="checkbox" class="cu-role-cb" value="{{ role }}" style="accent-color:var(--accent)">
+                <span>{{ role }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="col-12" id="cu-managed-section" style="display:none">
+            <label class="fl">Managed Roles (for managers)</label>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:8px">
+              {% for role in all_roles %}
+              <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
+                <input type="checkbox" class="cu-managed-cb" value="{{ role }}" style="accent-color:var(--green)">
+                <span>{{ role }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-fo" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-fx" onclick="submitCreateUser()">
+          <i class="bi bi-check-lg"></i> Create User
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit user modal -->
+<div class="modal fade forge-modal" id="editUserModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-pencil me-2" style="color: var(--forge-accent)"></i>Edit User
+        </h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form id="editUserForm" onsubmit="event.preventDefault(); submitEditUser();">
+        <input type="hidden" id="eu-id" />
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="fl">Full Name</label>
+            <input type="text" id="eu-name" class="fi" />
+          </div>
+          <div class="col-md-6">
+            <label class="fl">Email</label>
+            <input type="email" id="eu-email" class="fi" />
+          </div>
+          <div class="col-12">
+            <label class="fl">Roles (select multiple)</label>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:8px">
+              {% for role in all_roles %}
+              <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surf);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
+                <input type="checkbox" class="eu-role-cb" value="{{ role }}" style="accent-color:var(--accent)">
+                <span>{{ role }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="col-12" id="eu-managed-section" style="display:none">
+            <label class="fl">Managed Roles (for managers)</label>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:8px">
+              {% for role in all_roles %}
+              <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
+                <input type="checkbox" class="eu-managed-cb" value="{{ role }}" style="accent-color:var(--green)">
+                <span>{{ role }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-fo" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-fx" onclick="submitEditUser()">
+          <i class="bi bi-check-lg"></i> Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Change Password Modal (Admin) -->
+<div class="modal fade forge-modal" id="changePasswordModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-key me-2" style="color: var(--forge-accent)"></i>Change Password
+        </h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form id="changePasswordForm" onsubmit="event.preventDefault(); submitChangePassword();">
+        <input type="hidden" id="cp-user-id" />
+        <p style="margin:0 0 16px;font-size:13px;color:var(--muted)">
+          Changing password for: <strong id="cp-user-name"></strong>
+        </p>
+        <div class="mb-3">
+          <label class="fl">New Password</label>
+          <input type="password" id="cp-password" class="fi" placeholder="Minimum 6 characters" />
+        </div>
+        <div class="mb-3">
+          <label class="fl">Confirm Password</label>
+          <input type="password" id="cp-confirm" class="fi" placeholder="Repeat password" />
+        </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-fo" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-fx" onclick="submitChangePassword()">
+          <i class="bi bi-check-lg"></i> Update Password
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let createUserModal, editUserModal, changePasswordModal;
+
+function openCreateUser() {
+  if (!createUserModal) createUserModal = new bootstrap.Modal(document.getElementById('createUserModal'));
+  document.getElementById('cu-name').value = '';
+  document.getElementById('cu-email').value = '';
+  document.getElementById('cu-pass').value = '';
+  document.querySelectorAll('.cu-role-cb').forEach(cb => cb.checked = false);
+  document.querySelectorAll('.cu-managed-cb').forEach(cb => cb.checked = false);
+  document.getElementById('cu-managed-section').style.display = 'none';
+  createUserModal.show();
+}
+
+// Show managed roles section if manager/ceo selected
+document.addEventListener('change', e => {
+  if (e.target.classList.contains('cu-role-cb')) {
+    const selected = Array.from(document.querySelectorAll('.cu-role-cb:checked')).map(cb => cb.value);
+    document.getElementById('cu-managed-section').style.display = 
+      (selected.includes('manager') || selected.includes('ceo')) ? 'block' : 'none';
+  }
+  if (e.target.classList.contains('eu-role-cb')) {
+    const selected = Array.from(document.querySelectorAll('.eu-role-cb:checked')).map(cb => cb.value);
+    document.getElementById('eu-managed-section').style.display = 
+      (selected.includes('manager') || selected.includes('ceo')) ? 'block' : 'none';
+  }
+});
+
+async function submitCreateUser() {
+  const name = document.getElementById('cu-name').value.trim();
+  const email = document.getElementById('cu-email').value.trim();
+  const password = document.getElementById('cu-pass').value;
+  const roles = Array.from(document.querySelectorAll('.cu-role-cb:checked')).map(cb => cb.value);
+  const managed_roles = Array.from(document.querySelectorAll('.cu-managed-cb:checked')).map(cb => cb.value);
+
+  if (!name || !email || !password) {
+    showToast('Please fill all required fields', 'red', 'bi-exclamation-circle');
+    return;
+  }
+  if (roles.length === 0) {
+    showToast('Please select at least one role', 'red', 'bi-exclamation-circle');
+    return;
+  }
+
+  const r = await fetch('/api/users', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name, email, password, roles, managed_roles})
+  });
+  if (r.ok) {
+    createUserModal.hide();
+    showToast('User created successfully', 'green', 'bi-check-circle');
+    setTimeout(() => location.reload(), 800);
+  } else {
+    const err = await r.json();
+    showToast(err.error || 'Failed to create user', 'red', 'bi-x-circle');
+  }
+}
+
+function openEditUser(user) {
+  if (!editUserModal) editUserModal = new bootstrap.Modal(document.getElementById('editUserModal'));
+  document.getElementById('eu-id').value = user.id;
+  document.getElementById('eu-name').value = user.name;
+  document.getElementById('eu-email').value = user.email;
+  
+  document.querySelectorAll('.eu-role-cb').forEach(cb => {
+    cb.checked = user.roles.includes(cb.value);
+  });
+  document.querySelectorAll('.eu-managed-cb').forEach(cb => {
+    cb.checked = user.managed_roles.includes(cb.value);
+  });
+  
+  document.getElementById('eu-managed-section').style.display = 
+    (user.roles.includes('manager') || user.roles.includes('ceo')) ? 'block' : 'none';
+  
+  editUserModal.show();
+}
+
+async function submitEditUser() {
+  const id = document.getElementById('eu-id').value;
+  const name = document.getElementById('eu-name').value.trim();
+  const email = document.getElementById('eu-email').value.trim();
+  const roles = Array.from(document.querySelectorAll('.eu-role-cb:checked')).map(cb => cb.value);
+  const managed_roles = Array.from(document.querySelectorAll('.eu-managed-cb:checked')).map(cb => cb.value);
+
+  if (!name || !email || roles.length === 0) {
+    showToast('Please fill all required fields', 'red', 'bi-exclamation-circle');
+    return;
+  }
+
+  try {
+    const r = await fetch(`/api/users/${id}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name, email, roles, managed_roles})
+    });
+    if (r.ok) {
+      editUserModal.hide();
+      showToast('User updated successfully', 'green', 'bi-check-circle');
+      setTimeout(() => location.reload(), 800);
+    } else {
+      const err = await r.json();
+      showToast(err.error || 'Failed to update user', 'red', 'bi-x-circle');
+    }
+  } catch (error) {
+    console.error('Edit user error:', error);
+    showToast('Network error. Please try again.', 'red', 'bi-x-circle');
+  }
+}
+
+function openChangePassword(userId, userName) {
+  if (!changePasswordModal) changePasswordModal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
+  document.getElementById('cp-user-id').value = userId;
+  document.getElementById('cp-user-name').textContent = userName;
+  document.getElementById('cp-password').value = '';
+  document.getElementById('cp-confirm').value = '';
+  changePasswordModal.show();
+}
+
+async function submitChangePassword() {
+  const userId = document.getElementById('cp-user-id').value;
+  const password = document.getElementById('cp-password').value;
+  const confirm = document.getElementById('cp-confirm').value;
+
+  if (password.length < 6) {
+    showToast('Password must be at least 6 characters', 'red', 'bi-exclamation-circle');
+    return;
+  }
+  if (password !== confirm) {
+    showToast('Passwords do not match', 'red', 'bi-exclamation-circle');
+    return;
+  }
+
+  const r = await fetch(`/api/users/${userId}/password`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({password})
+  });
+  if (r.ok) {
+    changePasswordModal.hide();
+    showToast('Password updated successfully', 'green', 'bi-check-circle');
+  } else {
+    const err = await r.json();
+    showToast(err.error || 'Failed to update password', 'red', 'bi-x-circle');
+  }
+}
+
+async function deleteUser(id, name) {
+  if (!confirm(`Delete user "${name}"? This cannot be undone.`)) return;
+  const r = await fetch(`/api/users/${id}`, {method: 'DELETE'});
+  if (r.ok) {
+    showToast('User deleted', 'red', 'bi-trash');
+    setTimeout(() => location.reload(), 800);
+  }
+}
+</script>
+{% endblock %}

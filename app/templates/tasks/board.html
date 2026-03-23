@@ -1,0 +1,375 @@
+{% extends 'base.html' %} {% block title %}Kanban Board — TaskForge{% endblock
+%} {% block page_title %}<span>Task</span>Forge Kanban{% endblock %} {% block
+extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+{% endblock %} {% block content %}
+<div class="board-toolbar">
+  <div style="display:flex;gap:10px;align-items:center">
+    <button class="btn-fo" id="filter-my-tasks" onclick="toggleMyTasks()" style="padding:7px 12px;font-size:13px">
+      <i class="bi bi-person-circle"></i> My Tasks
+    </button>
+  </div>
+  <div style="flex: 1"></div>
+  <input
+    type="text"
+    id="board-search"
+    class="fi"
+    style="max-width: 200px; padding: 7px 12px; font-size: 13px"
+    placeholder="Filter tasks..."
+  />
+  <select id="board-filter-assignee" class="forge-input form-select">
+    <option value="">All Assignees</option>
+    {% for u in users %}
+    <option value="{{ u.id }}">{{ u.name }}</option>
+    {% endfor %}
+  </select>
+</div>
+
+<div class="board-wrap" id="kanban-board">
+  {% for status, label, col_class in [ ('not_started','Not
+  Started','col-not_started'), ('in_progress','In Progress','col-in_progress'),
+  ('blocked','Blocked','col-blocked'), ('completed','Completed','col-completed')
+  ] %}
+  <div class="kanban-col {{ col_class }}" data-status="{{ status }}">
+    <div class="col-header">
+      <span class="col-title"><span class="col-dot"></span>{{ label }}</span>
+      <span class="col-count" id="count-{{ status }}">0</span>
+    </div>
+    <div
+      class="task-list"
+      id="col-{{ status }}"
+      data-status="{{ status }}"
+    ></div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="moving-indicator" id="moving-indicator">Moving task...</div>
+
+<!-- Quick edit modal for kanban -->
+<div class="modal fade forge-modal" id="quickEditModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-pencil me-2" style="color: var(--forge-accent)"></i
+          >Quick Edit
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <div class="modal-body p-4">
+        <input type="hidden" id="qe-id" />
+        <div class="mb-3">
+          <label class="fl">Title</label>
+          <input type="text" id="qe-title" class="fi" />
+        </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="fl">Priority</label>
+            <select id="qe-priority" class="forge-input form-select">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="fl">Assignee</label>
+            <select id="qe-assignee" class="forge-input form-select">
+              <option value="">Unassigned</option>
+              {% for u in users %}
+              <option value="{{ u.id }}">{{ u.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-fo" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-fx" onclick="submitQuickEdit()">
+          <i class="bi bi-check-lg"></i> Save
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  let allTasks = {};
+  let quickEditModal;
+  const PRIORITY_COLORS = {
+    low: "#00d17a",
+    medium: "#ffd700",
+    high: "#ff6b35",
+    critical: "#ff3b5c",
+  };
+  const STATUS_LABELS = {
+    not_started: "Not Started",
+    in_progress: "In Progress",
+    blocked: "Blocked",
+    completed: "Completed",
+  };
+  // Current user info
+  const CURRENT_USER = {
+    id: {{ current_user.id }},
+    role: '{{ current_user.role }}'
+  };
+  let filterSearch = "";
+  let filterAssignee = "";
+  let filterMyTasks = false;
+
+  function toggleMyTasks() {
+    filterMyTasks = !filterMyTasks;
+    const btn = document.getElementById('filter-my-tasks');
+    if (filterMyTasks) {
+      btn.classList.add('btn-fx');
+      btn.classList.remove('btn-fo');
+      filterAssignee = CURRENT_USER.id;
+      document.getElementById('board-filter-assignee').value = CURRENT_USER.id;
+    } else {
+      btn.classList.remove('btn-fx');
+      btn.classList.add('btn-fo');
+      filterAssignee = "";
+      document.getElementById('board-filter-assignee').value = "";
+    }
+    renderBoard();
+    initSortable();
+  }
+
+  function canEditTask(task) {
+    if (['admin', 'ceo'].includes(CURRENT_USER.role)) return true;
+    if (CURRENT_USER.role === 'manager') {
+      return task.creator_id === CURRENT_USER.id || task.assignee_id === CURRENT_USER.id;
+    }
+    return task.creator_id === CURRENT_USER.id || task.assignee_id === CURRENT_USER.id;
+  }
+
+  function buildCard(task) {
+    const due = task.due_date
+      ? `<span class="card-due ${task.is_overdue ? "overdue" : ""}"><i class="bi bi-calendar3"></i> ${task.due_date}${task.is_overdue ? " ⚠" : ""}</span>`
+      : "";
+    const tags = task.tags.length
+      ? `<div class="card-tags">${task.tags
+          .slice(0, 3)
+          .map((t) => `<span class="card-tag">${t}</span>`)
+          .join("")}</div>`
+      : "";
+    const initials =
+      task.assignee_name !== "Unassigned"
+        ? task.assignee_name
+            .split(" ")
+            .map((w) => w[0])
+            .join("")
+            .slice(0, 2)
+        : "?";
+    const canEdit = canEditTask(task);
+    const editBtn = canEdit
+      ? `<button class="card-action-btn" onclick='openQuickEdit(${JSON.stringify(task).replace(/'/g, "\\'")}); event.stopPropagation()' title="Edit"><i class="bi bi-pencil"></i></button>`
+      : '';
+    const deleteBtn = ['admin', 'manager'].includes(CURRENT_USER.role)
+      ? `<button class="card-action-btn del" onclick="deleteTask(${task.id},'${task.title.replace(/'/g, "\\'")}'); event.stopPropagation()" title="Delete"><i class="bi bi-trash"></i></button>`
+      : '';
+    return `
+  <div class="kanban-card" data-id="${task.id}" data-status="${task.status}" data-creator-id="${task.creator_id}">
+    <div class="card-priority-stripe" style="background:${PRIORITY_COLORS[task.priority]}"></div>
+    <div class="card-title">${task.title}</div>
+    <div class="card-meta">
+      <div class="card-assignee">
+        <div class="card-avatar">${initials}</div>
+        <span>${task.assignee_name}</span>
+      </div>
+      ${due}
+    </div>
+    ${tags}
+    <div class="card-footer">
+      <span class="sb p-${task.priority}" style="font-size:9px">${task.priority.toUpperCase()}</span>
+      <div class="card-actions">
+        <a href="/tasks/${task.id}" class="card-action-btn" title="View"><i class="bi bi-eye"></i></a>
+        ${editBtn}
+        ${deleteBtn}
+      </div>
+    </div>
+  </div>`;
+  }
+
+  function renderBoard() {
+    const statuses = ["not_started", "in_progress", "blocked", "completed"];
+    statuses.forEach((s) => {
+      const col = document.getElementById(`col-${s}`);
+      const tasks = Object.values(allTasks).filter((t) => {
+        if (t.status !== s) return false;
+        if (
+          filterSearch &&
+          !t.title.toLowerCase().includes(filterSearch.toLowerCase())
+        )
+          return false;
+        if (filterAssignee && String(t.assignee_id) !== String(filterAssignee))
+          return false;
+        return true;
+      });
+      document.getElementById(`count-${s}`).textContent = tasks.length;
+      if (!tasks.length) {
+        col.innerHTML = `<div class="empty-col"><i class="bi bi-inbox"></i>No tasks here</div>`;
+      } else {
+        col.innerHTML = tasks.map(buildCard).join("");
+      }
+    });
+  }
+
+  async function loadTasks() {
+    const r = await fetch("/api/tasks");
+    const tasks = await r.json();
+    allTasks = {};
+    tasks.forEach((t) => (allTasks[t.id] = t));
+    renderBoard();
+    initSortable();
+  }
+
+  function initSortable() {
+    const statuses = ["not_started", "in_progress", "blocked", "completed"];
+    statuses.forEach((status) => {
+      const el = document.getElementById(`col-${status}`);
+      if (el._sortable) el._sortable.destroy();
+      el._sortable = Sortable.create(el, {
+        group: "kanban",
+        animation: 200,
+        ghostClass: "sortable-ghost",
+        chosenClass: "sortable-chosen",
+        dragClass: "sortable-drag",
+        draggable: ".kanban-card",
+        filter: ".no-drag",
+        onMove: (evt) => {
+          const taskId = parseInt(evt.dragged.dataset.id);
+          const task = allTasks[taskId];
+          if (!canEditTask(task)) {
+            return false;
+          }
+          return true;
+        },
+        onStart: (evt) => {
+          const taskId = parseInt(evt.item.dataset.id);
+          const task = allTasks[taskId];
+          if (!canEditTask(task)) {
+            return false;
+          }
+          document
+            .querySelectorAll(".task-list")
+            .forEach((c) => c.classList.add("drag-over"));
+        },
+        onEnd: () => {
+          document
+            .querySelectorAll(".task-list")
+            .forEach((c) => c.classList.remove("drag-over"));
+        },
+        onAdd: async (evt) => {
+          const taskId = parseInt(evt.item.dataset.id);
+          const task = allTasks[taskId];
+          if (!canEditTask(task)) {
+            showToast("You do not have permission to move this task", "red", "bi-lock-fill");
+            loadTasks();
+            return;
+          }
+          const newStatus = evt.to.dataset.status;
+          const oldStatus = evt.item.dataset.status;
+          if (newStatus === oldStatus) return;
+          showMovingIndicator();
+          const r = await fetch(`/api/tasks/${taskId}/status`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: newStatus }),
+          });
+          hideMovingIndicator();
+          if (r.ok) {
+            const updated = await r.json();
+            allTasks[taskId] = updated;
+            renderBoard();
+            initSortable();
+          } else {
+            showToast("Failed to update status", "red", "bi-x-circle");
+            loadTasks();
+          }
+        },
+      });
+      el._sortable = el._sortable;
+    });
+  }
+
+  function showMovingIndicator() {
+    const el = document.getElementById("moving-indicator");
+    el.style.opacity = "1";
+  }
+  function hideMovingIndicator() {
+    const el = document.getElementById("moving-indicator");
+    el.style.opacity = "0";
+  }
+
+  function openQuickEdit(task) {
+    if (!quickEditModal)
+      quickEditModal = new bootstrap.Modal(
+        document.getElementById("quickEditModal"),
+      );
+    document.getElementById("qe-id").value = task.id;
+    document.getElementById("qe-title").value = task.title;
+    document.getElementById("qe-priority").value = task.priority;
+    document.getElementById("qe-assignee").value = task.assignee_id || "";
+    quickEditModal.show();
+  }
+
+  async function submitQuickEdit() {
+    const id = document.getElementById("qe-id").value;
+    const body = {
+      title: document.getElementById("qe-title").value,
+      priority: document.getElementById("qe-priority").value,
+      assignee_id: document.getElementById("qe-assignee").value || null,
+    };
+    const r = await fetch(`/api/tasks/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (r.ok) {
+      const updated = await r.json();
+      allTasks[updated.id] = updated;
+      quickEditModal.hide();
+      renderBoard();
+      initSortable();
+      showToast("Task updated!", "green", "bi-check-circle");
+    }
+  }
+
+  async function deleteTask(id, title) {
+    if (!confirm(`Delete "${title}"?`)) return;
+    const r = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+    if (r.ok) {
+      delete allTasks[id];
+      renderBoard();
+      initSortable();
+      showToast("Task deleted", "red", "bi-trash");
+    }
+  }
+
+  document.getElementById("board-search").addEventListener("input", (e) => {
+    filterSearch = e.target.value;
+    renderBoard();
+    initSortable();
+  });
+  document
+    .getElementById("board-filter-assignee")
+    .addEventListener("change", (e) => {
+      filterAssignee = e.target.value;
+      filterMyTasks = false;
+      document.getElementById('filter-my-tasks').classList.remove('btn-fx');
+      document.getElementById('filter-my-tasks').classList.add('btn-fo');
+      renderBoard();
+      initSortable();
+    });
+
+  loadTasks();
+  // Auto-refresh every 30 seconds
+  setInterval(loadTasks, 30000);
+</script>
+{% endblock %}

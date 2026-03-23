@@ -1,0 +1,378 @@
+{% extends 'base.html' %}
+{% block title %}Reports — TaskForge{% endblock %}
+{% block page_title %}<span>Task</span> Reports{% endblock %}
+
+{% block extra_css %}
+<style>
+.rp-intro { margin-bottom: 32px; }
+.rp-intro h2 { font-size: 22px; font-weight: 800; margin: 0 0 4px; }
+.rp-intro p  { font-size: 13px; color: var(--muted); margin: 0; }
+
+.rp-card {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.rp-card h3 {
+  font-size: 16px;
+  font-weight: 800;
+  margin: 0 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rp-card h3 i {
+  color: var(--accent);
+  font-size: 20px;
+}
+
+.rp-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.rp-preview-wrap {
+  margin-top: 32px;
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.rp-preview-hd {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rp-preview-title {
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rp-preview-body {
+  padding: 0;
+}
+
+.rp-preview-body iframe {
+  width: 100%;
+  height: 680px;
+  border: none;
+  display: block;
+  background: #fff;
+}
+
+.rp-preview-empty {
+  padding: 60px 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.rp-preview-empty i {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 12px;
+  opacity: .25;
+}
+
+.legend-strip {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+  padding: 12px 16px;
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  align-items: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+@media (max-width: 700px) {
+  .rp-form-grid { grid-template-columns: 1fr; }
+  .rp-preview-body iframe { height: 500px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rp-intro">
+  <h2>Generate Reports</h2>
+  <p>Export professional PDF reports with task activity, filtered by date range, user, or role.</p>
+</div>
+
+<!-- Legend -->
+<div class="legend-strip">
+  <span style="font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-right:4px">Status</span>
+  <div class="legend-item"><div class="legend-dot" style="background:#6B7280"></div>Not Started</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#2563EB"></div>In Progress</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#DC2626"></div>Blocked</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#059669"></div>Completed</div>
+  <div style="width:1px;height:18px;background:var(--border);margin:0 4px"></div>
+  <span style="font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-right:4px">Priority</span>
+  <div class="legend-item"><div class="legend-dot" style="background:#059669"></div>Low</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#D97706"></div>Medium</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#EA580C"></div>High</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#DC2626"></div>Critical</div>
+</div>
+
+<!-- Report Configuration Card -->
+<div class="rp-card">
+  <h3><i class="bi bi-sliders"></i> Report Configuration</h3>
+  
+  {% if current_user.has_role('viewer', 'admin', 'ceo', 'manager') %}
+  <!-- Full configuration for managers/admins/viewers/ceo -->
+  <div class="rp-form-grid">
+    <div>
+      <label class="fl">Period</label>
+      <select id="rp-period" class="fi form-select" onchange="toggleDateInputs()">
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+        <option value="custom">Custom Range</option>
+      </select>
+    </div>
+
+    <div id="rp-date-single-wrap">
+      <label class="fl">Date</label>
+      <input type="date" id="rp-date" class="fi" value="{{ today }}" />
+    </div>
+
+    <div id="rp-date-range-wrap" style="display:none;grid-column:span 2">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <label class="fl">Start Date</label>
+          <input type="date" id="rp-start-date" class="fi" value="{{ today }}" />
+        </div>
+        <div>
+          <label class="fl">End Date</label>
+          <input type="date" id="rp-end-date" class="fi" value="{{ today }}" />
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <label class="fl">Scope</label>
+      <select id="rp-scope" class="fi form-select" onchange="toggleScopeInputs()">
+        <option value="all">All Accessible Tasks</option>
+        <option value="user">Specific User</option>
+        <option value="role">Specific Role</option>
+      </select>
+    </div>
+
+    <div id="rp-user-wrap" style="display:none">
+      <label class="fl">User</label>
+      <select id="rp-user" class="fi form-select">
+        {% for u in users %}
+        <option value="{{ u.id }}">{{ u.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div id="rp-role-wrap" style="display:none">
+      <label class="fl">Role</label>
+      <select id="rp-role" class="fi form-select">
+        {% for role in all_roles %}
+        <option value="{{ role }}">{{ role }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  {% else %}
+  <!-- Simplified for developers/technicians/accountants -->
+  <div class="rp-form-grid">
+    <div>
+      <label class="fl">Period</label>
+      <select id="rp-period" class="fi form-select" onchange="toggleDateInputs()">
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+        <option value="custom">Custom Range</option>
+      </select>
+    </div>
+
+    <div id="rp-date-single-wrap">
+      <label class="fl">Date</label>
+      <input type="date" id="rp-date" class="fi" value="{{ today }}" />
+    </div>
+
+    <div id="rp-date-range-wrap" style="display:none;grid-column:span 2">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <label class="fl">Start Date</label>
+          <input type="date" id="rp-start-date" class="fi" value="{{ today }}" />
+        </div>
+        <div>
+          <label class="fl">End Date</label>
+          <input type="date" id="rp-end-date" class="fi" value="{{ today }}" />
+        </div>
+      </div>
+    </div>
+  </div>
+  <input type="hidden" id="rp-scope" value="user" />
+  <input type="hidden" id="rp-user" value="{{ current_user.id }}" />
+  <p style="margin:12px 0 0;font-size:12px;color:var(--muted)">
+    <i class="bi bi-info-circle"></i> You can only generate reports for your own tasks.
+  </p>
+  {% endif %}
+
+  <div style="display:flex;gap:10px;margin-top:20px">
+    <button class="btn-fx" onclick="previewReport()" style="flex:1">
+      <i class="bi bi-eye"></i> Preview Report
+    </button>
+    <button class="btn-fx" onclick="downloadReport()" style="flex:1;background:var(--green)">
+      <i class="bi bi-download"></i> Download PDF
+    </button>
+  </div>
+</div>
+
+<!-- PDF Preview -->
+<div class="rp-preview-wrap" id="preview-wrap">
+  <div class="rp-preview-hd">
+    <span class="rp-preview-title">
+      <i class="bi bi-file-earmark-pdf-fill" style="color:var(--accent)"></i>
+      Report Preview
+    </span>
+    <span id="preview-label" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span>
+  </div>
+  <div class="rp-preview-body">
+    <div class="rp-preview-empty" id="preview-empty">
+      <i class="bi bi-file-earmark-pdf"></i>
+      Configure your report above and click <strong>Preview Report</strong>
+    </div>
+    <iframe id="preview-frame" style="display:none"></iframe>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentUrl = null;
+
+function toggleDateInputs() {
+  const period = document.getElementById('rp-period').value;
+  const singleWrap = document.getElementById('rp-date-single-wrap');
+  const rangeWrap = document.getElementById('rp-date-range-wrap');
+  
+  if (period === 'custom') {
+    singleWrap.style.display = 'none';
+    rangeWrap.style.display = 'block';
+  } else {
+    singleWrap.style.display = 'block';
+    rangeWrap.style.display = 'none';
+  }
+}
+
+function toggleScopeInputs() {
+  const scope = document.getElementById('rp-scope').value;
+  document.getElementById('rp-user-wrap').style.display = scope === 'user' ? 'block' : 'none';
+  document.getElementById('rp-role-wrap').style.display = scope === 'role' ? 'block' : 'none';
+}
+
+function buildReportUrl() {
+  const period = document.getElementById('rp-period').value;
+  const scope = document.getElementById('rp-scope').value;
+  
+  let params = new URLSearchParams();
+  params.append('period', period);
+  
+  if (period === 'custom') {
+    params.append('start_date', document.getElementById('rp-start-date').value);
+    params.append('end_date', document.getElementById('rp-end-date').value);
+  } else {
+    params.append('date', document.getElementById('rp-date').value);
+  }
+  
+  if (scope === 'user') {
+    params.append('user_id', document.getElementById('rp-user').value);
+  } else if (scope === 'role') {
+    params.append('role', document.getElementById('rp-role').value);
+  }
+  
+  return `/reports/pdf?${params.toString()}`;
+}
+
+function getReportLabel() {
+  const period = document.getElementById('rp-period').value;
+  const scope = document.getElementById('rp-scope').value;
+  
+  let label = period.charAt(0).toUpperCase() + period.slice(1) + ' Report';
+  
+  if (scope === 'user') {
+    const sel = document.getElementById('rp-user');
+    label += ' — ' + sel.options[sel.selectedIndex].text;
+  } else if (scope === 'role') {
+    const sel = document.getElementById('rp-role');
+    label += ' — Role: ' + sel.options[sel.selectedIndex].text;
+  }
+  
+  return label;
+}
+
+function previewReport() {
+  const url = buildReportUrl();
+  currentUrl = url;
+  
+  const frame = document.getElementById('preview-frame');
+  const empty = document.getElementById('preview-empty');
+  const lbl = document.getElementById('preview-label');
+  
+  frame.style.display = 'none';
+  empty.innerHTML = '<i class="bi bi-hourglass-split" style="font-size:36px;display:block;margin-bottom:12px;opacity:.3;animation:spin 1.2s linear infinite"></i>Generating PDF…';
+  empty.style.display = 'block';
+  lbl.textContent = '';
+  
+  frame.onload = () => {
+    empty.style.display = 'none';
+    frame.style.display = 'block';
+    lbl.textContent = getReportLabel();
+    showToast('Report ready', 'green', 'bi-check-circle');
+  };
+  
+  frame.onerror = () => {
+    empty.innerHTML = '<i class="bi bi-exclamation-circle" style="font-size:36px;color:var(--red);display:block;margin-bottom:12px"></i>Failed to generate report';
+  };
+  
+  frame.src = url;
+  document.getElementById('preview-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function downloadReport() {
+  if (!currentUrl) {
+    showToast('Please preview the report first', 'orange', 'bi-exclamation-circle');
+    return;
+  }
+  window.open(currentUrl, '_blank');
+}
+</script>
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}
